@@ -4,6 +4,7 @@ import gpiod
 import datetime
 import time
 import yaml
+import selectors
 
 with open('config.yaml', 'r') as io:
     config = yaml.safe_load(io)
@@ -26,15 +27,24 @@ in_ls = gpiod.LineSettings(
 
 
 
-with gpiod.Chip("/dev/gpiochip0") as chip:
+with gpiod.Chip(config['chip']) as chip:
 
+    # Get the lines
     req = chip.request_lines(
             { in_line: in_ls, out_line: out_ls },
-            consumer = "lock-controller"
+            consumer = config["consumer"]
             )
-    req.set_value(out_line, gpiod.line.Value.ACTIVE)
-    time.sleep(1)
-    req.set_value(out_line, gpiod.line.Value.INACTIVE)
+
+    # Set up the selector
+    selector = selectors.DefaultSelector()
+    selector.register(chip.fd, selectors.EVENT_READ, None)
+
+    # Deal with timeout TODO
+    while True:
+        events = selector.select(100)
+        for key, mask in events:
+            callback = key.data
+            callback(key.fileobj, mask)
 
 
 

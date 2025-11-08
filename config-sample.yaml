@@ -1,0 +1,11 @@
+# The name of the GPIO input line (to the lock detection switch).
+in_line: "GPIO1"
+
+# The name of the GPIO output line (to the unlocking circuit).
+out_line: "GPIO2"
+
+# The GPIO chip device. Probably leave this alone.
+chip: "/dev/gpiochip0"
+
+# The name of the GPIO consumer (just for display purposes).
+consumer: "lock-controller"
