@@ -3,9 +3,13 @@
 import gpiod
 import datetime
 import time
+import yaml
 
-out_line = "GPIO22"
-in_line = "GPIO27"
+with open('config.yaml', 'r') as io:
+    config = yaml.safe_load(io)
+
+in_line = config['in_line']
+out_line = config['out_line']
 
 out_ls = gpiod.LineSettings(
         direction = gpiod.line.Direction.OUTPUT,
