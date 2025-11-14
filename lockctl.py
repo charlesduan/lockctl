@@ -4,7 +4,7 @@ import gpiod
 import datetime
 import time
 import yaml
-import selectors
+import event_loop
 
 with open('config.yaml', 'r') as io:
     config = yaml.safe_load(io)
@@ -35,16 +35,17 @@ with gpiod.Chip(config['chip']) as chip:
             consumer = config["consumer"]
             )
 
-    # Set up the selector
-    selector = selectors.DefaultSelector()
-    selector.register(chip.fd, selectors.EVENT_READ, None)
+    def read_fn(obj):
+        for e in req.read_edge_events():
+            if e.event_type == gpiod.EdgeEvent.FALLING_EDGE:
+                t = "falling"
+            else:
+                t = "rising"
+            print(f"Line {e.line_offset} is {t}")
 
-    # Deal with timeout TODO
-    while True:
-        events = selector.select(100)
-        for key, mask in events:
-            callback = key.data
-            callback(key.fileobj, mask)
+    event_loop.FDReader(chip.fd, read_fn)
+
+    event_loop.run_loop()
 
 
 
