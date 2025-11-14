@@ -28,30 +28,27 @@ in_ls = gpiod.LineSettings(
 
 
 with gpiod.Chip(config['chip']) as chip:
-
-    # Get the lines
-    req = chip.request_lines(
+    with chip.request_lines(
             { in_line: in_ls, out_line: out_ls },
             consumer = config["consumer"]
-            )
+            ) as req:
 
-    def read_fn(obj):
-        print("Read event")
-        for e in req.read_edge_events():
-            if e.event_type == gpiod.EdgeEvent.Type.FALLING_EDGE:
-                t = "falling"
-            else:
-                t = "rising"
-            print(f"Line {e.line_offset} is {t}")
+        def read_fn(obj):
+            print("Read event")
+            for e in req.read_edge_events():
+                if e.event_type == gpiod.EdgeEvent.Type.FALLING_EDGE:
+                    req.set_value(out_line, gpiod.line.Value.INACTIVE)
+                else:
+                    req.set_value(out_line, gpiod.line.Value.ACTIVE)
 
-    event_loop.FDReader(req.fd, read_fn)
+        event_loop.FDReader(req.fd, read_fn)
 
-    def check(obj):
-        print(f"In line is {req.get_value(in_line)}")
+        def check(obj):
+            print(f"In line is {req.get_value(in_line)}")
+            event_loop.TimedEvent(check, 3)
         event_loop.TimedEvent(check, 3)
-    event_loop.TimedEvent(check, 3)
 
-    event_loop.run_loop()
+        event_loop.run_loop()
 
 
 
