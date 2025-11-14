@@ -36,14 +36,20 @@ with gpiod.Chip(config['chip']) as chip:
             )
 
     def read_fn(obj):
+        print("Read event")
         for e in req.read_edge_events():
-            if e.event_type == gpiod.EdgeEvent.FALLING_EDGE:
+            if e.event_type == gpiod.EdgeEvent.Type.FALLING_EDGE:
                 t = "falling"
             else:
                 t = "rising"
             print(f"Line {e.line_offset} is {t}")
 
-    event_loop.FDReader(chip.fd, read_fn)
+    event_loop.FDReader(req.fd, read_fn)
+
+    def check(obj):
+        print(f"In line is {req.get_value(in_line)}")
+        event_loop.TimedEvent(check, 3)
+    event_loop.TimedEvent(check, 3)
 
     event_loop.run_loop()
 

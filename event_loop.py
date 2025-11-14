@@ -9,7 +9,7 @@ import heapq
 import os
 import socket
 
-sel = selectors.DefaultSelector()
+sel = selectors.EpollSelector()
 queue = []
 fd_readers = {}
 
