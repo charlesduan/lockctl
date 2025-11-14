@@ -7,6 +7,7 @@ import selectors
 import time
 import heapq
 import os
+import socket
 
 sel = selectors.DefaultSelector()
 queue = []
@@ -67,6 +68,7 @@ class FDReader:
 
     def terminate(self):
         sel.unregister(self.fd)
+        queue.remove(self)
         del(fd_readers[self.fd])
         if self.obj:
             self.obj.close()
@@ -76,6 +78,20 @@ class FDReader:
     def upon_expiry(self):
         global queue
         self.terminate()
+
+
+class SocketListener(FDReader):
+    def __init__(self, host, port, conn_callback, conn_timeout):
+        self.socket = socket.create_server((host, port))
+        self.socket.setblocking(False)
+        self.conn_callback = conn_callback
+        self.conn_timeout = conn_timeout
+        super().__init__(self.socket, lambda x: self.accept())
+
+    def accept(self):
+        conn, address = self.socket.accept()
+        conn.setblocking(False)
+        FDReader(conn, self.conn_callback, self.conn_timeout)
 
 
 
