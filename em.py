@@ -9,6 +9,8 @@ import socket
 from collections import deque
 
 queue = deque()
+time_queue = {}
+handlers = set()
 
 class Handler:
     """
@@ -25,6 +27,10 @@ class Handler:
 def send(obj: Handler, message, payload = None):
     """Send a message to the given Handler object."""
     queue.append((obj, message, payload))
+
+def schedule(obj: Handler, delay, message, payload = None):
+    time_queue.append(
+            (time.monotonic() + delay, obj, message, payload)
 
 def run():
     queue.append([ (MainHandler, 'run', None) ])
