@@ -29,9 +29,9 @@ class MainHandler(Handler):
         self.selector = selectors.DefaultSelector()
 
     def handle_run(self, payload):
-        handle_timed(payload)
-        handle_select(payload)
-        queue.append([ (self, 'run', None) ])
+        self.handle_timed(payload)
+        self.handle_select(payload)
+        queue.append((self, 'run', None))
 
     def handle_select(self, payload):
         if queue:
@@ -41,6 +41,13 @@ class MainHandler(Handler):
         events = self.select(timeout)
         for key, mask in events:
             # Find the relevant callback
+            queue.append((key.data, 'read', key.fileobj))
+
+    def handle_timed(self, payload):
+        now = time.monotonic()
+        now_events = []
+        future_events = []
+        for timed_event in time_queue:
             pass
 
 
@@ -54,7 +61,7 @@ def schedule(obj: Handler, delay, message, payload = None):
 
 def run():
     main_handler = MainHandler()
-    queue.append([ (main_handler, 'run', None) ])
+    queue.append((main_handler, 'run', None))
     try:
         while queue:
             obj, msg, payload = queue.popleft()
