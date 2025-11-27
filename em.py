@@ -244,7 +244,7 @@ class MainHandler(Handler):
         """
         if not isinstance(handler, FDHandler): raise TypeError()
         self.queue = [ x for x in self.queue if x[0] is not handler ]
-        if handler in self.timed_queue: del self.timed_queue[handler]
+        self.deschedule(handler)
         self.selector.unregister(handler.fileobj)
         self.fd_handlers.remove(handler)
 
@@ -260,6 +260,14 @@ class MainHandler(Handler):
                 time.monotonic() + delay,
                 Message(obj, message, payload)
                 )
+
+
+    def deschedule(self, handler):
+        """
+        Removes any scheduled events for the given Handler object from the timed
+        queue.
+        """
+        if handler in self.timed_queue: del self.timed_queue[handler]
 
 
     def run(self, catch_exceptions = True):
@@ -298,5 +306,6 @@ main_handler = MainHandler()
 # Delegate methods of the module to the singleton MainHandler
 send = main_handler.send
 schedule = main_handler.schedule
+deschedule = main_handler.deschedule
 run = main_handler.run
 

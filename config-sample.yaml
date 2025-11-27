@@ -12,3 +12,9 @@ chip: "/dev/gpiochip0"
 
 # The name of the GPIO consumer (just for display purposes).
 consumer: "lock-controller"
+
+# Port number for listening for incoming socket connections.
+port: 12345
+
+# Password to be sent to unlock the door.
+password: "abcdefg12345"

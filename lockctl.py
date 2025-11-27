@@ -25,6 +25,7 @@ class OutLineHandler(em.Handler):
         self.active = False
         # Just to make sure
         self.update_gpio()
+        self.pulsing = False
 
     def update_gpio(self):
         """ Updates the GPIO line to be compatible with self.active """
@@ -39,51 +40,75 @@ class OutLineHandler(em.Handler):
         # Return if already beeping. Perhaps in the future, figure out whether
         # to extend the current beep length?
         if duration is None: duration = 0.2
-        if self.active: return
+        if self.pulsing or self.active: return
         self.handle_on()
+        self.pulsing = True
         em.schedule(self, 0.2, "off", None)
+
+    def _cancel_pulse(self):
+        """
+        Turn off any scheduled events relating to a pulse (because of an
+        intentional on or off event).
+        """
+        if not self.pulsing: return
+        self.pulsing = False
+        em.deschedule(self)
 
     def handle_on(self, payload = None):
         """ Turn on the GPIO output """
         if self.active: return
         self.active = True
         self.update_gpio()
+        self._cancel_pulse()
 
     def handle_off(self, payload):
         """ Turn off the GPIO output """
         if not self.active: return
         self.active = False
         self.update_gpio()
+        self._cancel_pulse()
 
 
 class LockSwitchHandler(em.Handler):
     """
     Handles the GPIO switch indicating lock state.
     """
-    def __init__(self, beeper: GPIOOutHandler, unlocker: GPIOOutHandler):
+    def __init__(self, beeper, unlocker):
         self.beeper = beeper
         self.unlocker = unlocker
+        self.beep_delays = [ 0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60 ]
 
     def handle_rise(self, payload):
         """
         A rise (so the lock state is active) indicates that the door has been
         unlocked.
         """
-        em.send(self.beeper, "beep")
         em.send(self.unlocker, "on")
+        self.beep_index = 0
+        em.schedule(0, self, 'beep')
+
+    def handle_beep(payload):
+        self.beeper.send('pulse')
+        self.beep_index += 1
+        i = self.beep_index
+        if i < len(self.beep_delays):
+            em.schedule(self.beep_delays[i] - self.beep_delays[i - 1],
+                    self, 'beep')
 
     def handle_fall(self, payload):
         em.send(self.unlocker, "off")
+        em.deschedule(self)
 
 
 
 
 class GPIOHandler(em.FDHandler):
-    def __init__(self, chip_path):
+    def __init__(self, chip_path, consumer):
         self.chip = gpiod.Chip(chip_path)
         self.in_lines = {}
         self.out_lines = {}
         self.request = None
+        self.consumer = consumer
 
     def add_input_line(self, line, handler, settings = None):
         if type(line) is int: offset = line
@@ -117,7 +142,7 @@ class GPIOHandler(em.FDHandler):
         out_settings = { x, y[0] for x, y in self.out_lines.items() }
         self.request = self.chip.request_lines(
                 in_settings.update(out_settings),
-                consumer = config["consumer"]
+                consumer = self.consumer
                 )
 
         super().__init__(self.request.fd)
@@ -148,10 +173,18 @@ class GPIOHandler(em.FDHandler):
         except:
             pass
 
+class SocketUnlockReader(LineReader):
+    def __init__(self, fileobj, password, unlock_time, unlocker):
+        self.password = password
+        self.unlock_time = unlock_time
+        self.unlocker = unlocker
+        super().__init__(fileobj, 10)
 
-def 
+    def handle_line(self, line):
+        if self.password in line:
+            em.send(self.unlocker, 'pulse', self.unlock_time)
 
-gpio_handler = GPIOHandler(config['chip'])
+gpio_handler = GPIOHandler(config['chip'], config['consumer'])
 
 unlocker = OutLineHandler()
 gpio_handler.add_output_line(config['out_line'], unlocker)
@@ -160,31 +193,16 @@ beeper = OutLineHandler()
 gpio_handler.add_output_line(config['piezo_line'], beeper)
 
 gpio_handler.add_input_line(
-        config['in_line'], LockSwitchHandler(unlocker, beeper))
+        config['in_line'],
+        LockSwitchHandler(beeper = beeper, unlocker = unlocker))
 
 gpio_handler.make_request()
 
+socket_listener = em.SocketListener('localhost', config['port'],
+        lambda c: SocketUnlockReader(c, config['password'], 10, unlocker))
 
+em.register(socket_listener)
 
-        def read_fn(obj):
-            print("Read event")
-            for e in req.read_edge_events():
-                em.send(beeper, 'beep')
-                if e.event_type == gpiod.EdgeEvent.Type.FALLING_EDGE:
-                    req.set_value(out_line, Value.INACTIVE)
-                else:
-                    req.set_value(out_line, Value.ACTIVE)
-
-        event_loop.FDReader(req.fd, read_fn)
-
-        def check(obj):
-            print(f"In line is {req.get_value(in_line)}")
-            event_loop.TimedEvent(check, 3)
-        event_loop.TimedEvent(check, 3)
-
-        event_loop.run_loop()
-
-
-
+em.run()
 
 
