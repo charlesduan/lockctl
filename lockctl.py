@@ -11,27 +11,12 @@ from gpiod.line import Value
 with open('config.yaml', 'r') as io:
     config = yaml.safe_load(io)
 
-in_line = config['in_line']
-out_line = config['out_line']
-piezo_line = config['piezo_line']
-
-out_ls = gpiod.LineSettings(
-        direction = gpiod.line.Direction.OUTPUT,
-        active_low = False,
-        drive = gpiod.line.Drive.PUSH_PULL,
-        output_value = Value.INACTIVE)
-
-in_ls = gpiod.LineSettings(
-        direction = gpiod.line.Direction.INPUT,
-        active_low = False,
-        bias = gpiod.line.Bias.DISABLED,
-        debounce_period = datetime.timedelta(milliseconds = 3),
-        edge_detection = gpiod.line.Edge.BOTH)
 
 
-class GPIOOutHandler(em.Handler):
+class OutLineHandler(em.Handler):
     """
-    Manages actions for a GPIO output line.
+    Manages unlocking and locking the door via the GPIO output. Responds to
+    events "on", "off", and "pulse".
     """
 
     def __init__(self, line_request, offset):
@@ -70,42 +55,8 @@ class GPIOOutHandler(em.Handler):
         self.active = False
         self.update_gpio()
 
-class GPIOInHandler(em.Handler):
-    """
-    Handles all GPIO input events, by dispatching each line's events to a
-    specific handler.
-    """
 
-    def __init__(self, line_request):
-        self.line_request = line_request
-        self.handlers = {}
-        self.states = {}
-
-    def register(self, offset: int, handler: em.Handler):
-        """
-        Registers a handler for a GPIO input event. The handler must respond to
-        the messages "rise" and "fall", indicating the change to the state of
-        the GPIO input line.
-        """
-        self.handlers[offset] = handler
-
-        # TODO: occasionally check the state of the lines to make sure they're
-        # consistent.
-        self.states[offset] = self.line_request.get_value(offset)
-
-    def handle_input(self, payload):
-        for e in self.line_request.read_edge_events():
-            if e.event_type == gpiod.EdgeEvent.Type.RISING_EDGE:
-                msg = "rise"
-            else:
-                msg = "fall"
-
-            if e.line_offset in self.handlers:
-                em.send(self.handlers[e.line_offset], msg)
-            else:
-                pass # Should cause a warning message
-
-class LockStateHandler(em.Handler):
+class LockSwitchHandler(em.Handler):
     """
     Handles the GPIO switch indicating lock state.
     """
@@ -124,19 +75,96 @@ class LockStateHandler(em.Handler):
     def handle_fall(self, payload):
         em.send(self.unlocker, "off")
 
-with gpiod.Chip(config['chip']) as chip:
-    in_offset = chip.line_offset_from_id(in_line)
-    out_offset = chip.line_offset_from_id(out_line)
-    piezo_offset = chip.line_offset_from_id(piezo_line)
 
-    with chip.request_lines(
-            { in_offset: in_ls, out_offset: out_ls, piezo_offset: out_ls },
-            consumer = config["consumer"]
-            ) as req:
 
-        beeper = BeepHandler(req, piezo_offset)
-        in_handler = GPIOInHandler(req)
-        ls_handler = LockStateHandler(req, out_offset, beeper)
+
+class GPIOHandler(em.FDHandler):
+    def __init__(self, chip_path):
+        self.chip = gpiod.Chip(chip_path)
+        self.in_lines = {}
+        self.out_lines = {}
+        self.request = None
+
+    def add_input_line(self, line, handler, settings = None):
+        if type(line) is int: offset = line
+        else: offset = self.chip.line_offset_from_id(line)
+        if settings is None: settings = self.in_line_settings()
+        self.in_lines[offset] = (settings, handler)
+
+    def add_output_line(self, line, handler, settings = None):
+        if type(line) is int: offset = line
+        else: offset = self.chip.line_offset_from_id(line)
+        if settings is None: settings = self.out_line_settings()
+        self.out_lines[offset] = (settings, handler)
+
+    def out_line_settings(self):
+        return gpiod.LineSettings(
+            direction = gpiod.line.Direction.OUTPUT,
+            active_low = False,
+            drive = gpiod.line.Drive.PUSH_PULL,
+            output_value = Value.INACTIVE)
+
+    def in_line_settings(self):
+        return gpiod.LineSettings(
+            direction = gpiod.line.Direction.INPUT,
+            active_low = False,
+            bias = gpiod.line.Bias.DISABLED,
+            debounce_period = datetime.timedelta(milliseconds = 3),
+            edge_detection = gpiod.line.Edge.BOTH)
+
+    def make_request(self):
+        in_settings = { x, y[0] for x, y in self.in_lines.items() }
+        out_settings = { x, y[0] for x, y in self.out_lines.items() }
+        self.request = self.chip.request_lines(
+                in_settings.update(out_settings),
+                consumer = config["consumer"]
+                )
+
+        super().__init__(self.request.fd)
+        em.register_reader(self)
+
+        # Set the request for the output handlers, since they need access to it.
+        for settings, handler in self.out_lines.values():
+            handler.line_request = self.request
+
+
+    def handle_read(self, payload)
+        for e in self.request.read_edge_events():
+            if e.event_type == gpiod.EdgeEvent.Type.RISING_EDGE:
+                msg = "rise"
+            else:
+                msg = "fall"
+
+        if e.line_offset in self.in_lines:
+            em.send(self.in_lines[e.line_offset], msg)
+        else:
+            pass # Should cause a warning message
+
+    def terminate(self):
+        self.main_handler.unregister(self)
+        try:
+            if self.request is not None: self.request.release()
+            if self.chip: self.chip.close()
+        except:
+            pass
+
+
+def 
+
+gpio_handler = GPIOHandler(config['chip'])
+
+unlocker = OutLineHandler()
+gpio_handler.add_output_line(config['out_line'], unlocker)
+
+beeper = OutLineHandler()
+gpio_handler.add_output_line(config['piezo_line'], beeper)
+
+gpio_handler.add_input_line(
+        config['in_line'], LockSwitchHandler(unlocker, beeper))
+
+gpio_handler.make_request()
+
+
 
         def read_fn(obj):
             print("Read event")

@@ -4,7 +4,7 @@ in_line: "GPIO1"
 # The name of the GPIO output line (to the unlocking circuit).
 out_line: "GPIO2"
 
-# The name of the GPIO output line (to the unlocking circuit).
+# The name of the GPIO output line (to the beeper).
 piezo_line: "GPIO3"
 
 # The GPIO chip device. Probably leave this alone.
