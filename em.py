@@ -9,6 +9,7 @@ import socket
 from collections import deque
 import math
 from collections import namedtuple
+import traceback
 
 class Handler:
     """
@@ -71,7 +72,8 @@ class LineReader(FDHandler):
     respond to the message "line" where the line text is the payload.
     """
 
-    def __init__(fileobj, delimiter = "\n", encoding = "utf-8", timeout = None):
+    def __init__(self, fileobj, delimiter = "\n", encoding = "utf-8", timeout =
+                 None):
         super().__init__(fileobj, timeout)
         self.delimiter = delimiter.encode(encoding)
         self.encoding = encoding
@@ -86,12 +88,12 @@ class LineReader(FDHandler):
 
         self.buffer += buf
         while (idx := self.buffer.find(self.delimiter)) >= 0:
-            self.handle_line(self.buffer[0:idx].decode(encoding))
+            self.handle_line(self.buffer[0:idx].decode(self.encoding))
             del self.buffer[0:(idx + len(self.delimiter))]
 
 
     def terminate(self):
-        if self.buffer: self.handle_line(self.buffer.decode(encoding))
+        if self.buffer: self.handle_line(self.buffer.decode(self.encoding))
         super().terminate()
 
 
@@ -107,9 +109,9 @@ class SocketListener(FDHandler):
         function that takes an io object (a socket) and returns an FDHandler
         object that will handle reads from the socket.
         """
-        socket = socket.create_server((host, port))
-        socket.setblocking(False)
-        super().__init__(socket)
+        s = socket.create_server((host, port))
+        s.setblocking(False)
+        super().__init__(s)
         self.conn_handler = conn_handler
 
 
@@ -288,9 +290,11 @@ class MainHandler(Handler):
 
                 try:
                     message.handler.handle(message.event, message.payload)
-                except Exception as e:
-                    if catch_exceptions:    print(repr(e))
+                except Exception:
+                    if catch_exceptions:    traceback.print_exc()
                     else:                   raise(e)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt; terminating")
         finally:
             for h in list(self.fd_handlers): h.terminate()
 
@@ -308,4 +312,5 @@ send = main_handler.send
 schedule = main_handler.schedule
 deschedule = main_handler.deschedule
 run = main_handler.run
+register_reader = main_handler.register_reader
 
