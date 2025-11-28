@@ -5,6 +5,7 @@ import datetime
 import time
 import yaml
 import em
+import socket
 import gpio_handlers
 from collections import namedtuple
 
@@ -30,6 +31,7 @@ class LockSwitchHandler(gpio_handlers.InputHandler):
         """
         global unlocker
         em.send(unlocker, "on")
+        em.send(em.logger, 'log', "Door manually unlocked")
         self.beep_index = 0
         em.schedule(self, 0, 'beep')
 
@@ -45,6 +47,7 @@ class LockSwitchHandler(gpio_handlers.InputHandler):
     def handle_fall(self, payload):
         global unlocker
         em.send(unlocker, "off")
+        em.send(em.logger, 'log', "Door manually locked")
         em.deschedule(self)
 
 
@@ -52,13 +55,18 @@ class SocketUnlockReader(em.LineReader):
     def __init__(self, fileobj, password, unlock_time):
         self.password = password
         self.unlock_time = unlock_time
+        em.send(em.logger, 'log', f"Connection from {fileobj.getpeername()}")
         super().__init__(fileobj, timeout = 10)
 
     def handle_line(self, line):
-        print("Read line from socket: " + line)
         if self.password in line:
-            print("Unlocking")
+            em.send(em.logger, 'log',
+                    f"Access granted to {self.fileobj.getpeername()}")
             em.send(unlocker, 'pulse', self.unlock_time)
+
+    def terminate(self):
+        self.fileobj.shutdown(socket.SHUT_RDWR)
+        super().terminate()
 
 gpio_handler = gpio_handlers.GPIOHandler(config['chip'], config['consumer'])
 

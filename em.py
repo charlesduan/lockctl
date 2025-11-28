@@ -23,6 +23,23 @@ class Handler:
         method = getattr(self, f"handle_{message}")
         method(payload)
 
+
+class Logger(Handler):
+    """
+    An event handler that logs messages. A singleton instance of this class is
+    stored in the module's em.logger variable.
+    """
+    def handle_log(self, payload):
+        cont = None
+        if "\n" in payload: payload, cont = payload.split("\n", 1)
+        print(f"{time.asctime()}: {payload}")
+
+        if cont is None: return
+        print("-----")
+        print(cont)
+        print("-----")
+
+
 class FDHandler(Handler):
     """
     An event handler associated with a file descriptor. Only this type of
@@ -124,6 +141,10 @@ class SocketListener(FDHandler):
         conn.setblocking(False)
         handler = self.conn_handler(conn)
         main_handler.register_reader(handler)
+
+    def terminate(self):
+        self.fileobj.shutdown(socket.SHUT_RDWR)
+        super().terminate()
 
 
 Message = namedtuple('Message', 'handler event payload')
@@ -291,10 +312,13 @@ class MainHandler(Handler):
                 try:
                     message.handler.handle(message.event, message.payload)
                 except Exception:
-                    if catch_exceptions:    traceback.print_exc()
-                    else:                   raise(e)
+                    if not catch_exceptions: raise(e)
+                    logger.handle_log(
+                            f"Error handling {message.event}:\n"
+                            + traceback.format_exc()
+                            )
         except KeyboardInterrupt:
-            print("Keyboard interrupt; terminating")
+            logger.handle_log("Keyboard interrupt; terminating")
         finally:
             for h in list(self.fd_handlers): h.terminate()
 
@@ -313,4 +337,4 @@ schedule = main_handler.schedule
 deschedule = main_handler.deschedule
 run = main_handler.run
 register_reader = main_handler.register_reader
-
+logger = Logger()
