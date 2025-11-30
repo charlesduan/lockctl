@@ -2,7 +2,7 @@ import unittest
 import em
 import time
 
-class TestHandler(em.Handler):
+class StubHandler(em.Handler):
     def __init__(self):
         self.var = None
 
@@ -18,14 +18,14 @@ class TestEMSchedule(unittest.TestCase):
 
     def test_schedule(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.schedule(th, 0.1, 'test', 'hello')
         self.assertEqual(len(mh.timed_queue), 1)
         self.assertIn(th, mh.timed_queue)
 
     def test_schedule_run_timed(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.schedule(th, 0.1, 'test', 'hello')
         delay = mh.run_timed()
         self.assertEqual(len(mh.timed_queue), 1)
@@ -34,8 +34,8 @@ class TestEMSchedule(unittest.TestCase):
 
     def test_schedule_run_timed_min(self):
         mh = em.MainHandler()
-        th = TestHandler()
-        th2 = TestHandler()
+        th = StubHandler()
+        th2 = StubHandler()
         mh.schedule(th2, 0.2, 'test', 'hello')
         mh.schedule(th, 0.1, 'test', 'hello')
         delay = mh.run_timed()
@@ -43,8 +43,8 @@ class TestEMSchedule(unittest.TestCase):
 
     def test_schedule_run_timed_two(self):
         mh = em.MainHandler()
-        th = TestHandler()
-        th2 = TestHandler()
+        th = StubHandler()
+        th2 = StubHandler()
         mh.schedule(th, 0.1, 'test', 'hello')
         mh.schedule(th2, 0, 'test', 'hello2')
         delay = mh.run_timed()
@@ -55,8 +55,8 @@ class TestEMSchedule(unittest.TestCase):
 
     def test_schedule_run_timed_queued(self):
         mh = em.MainHandler()
-        th = TestHandler()
-        th2 = TestHandler()
+        th = StubHandler()
+        th2 = StubHandler()
         mh.schedule(th, 0.1, 'test', 'hello')
         mh.send(th2, 'test', 'hello2')
         delay = mh.run_timed()
@@ -66,8 +66,8 @@ class TestEMSchedule(unittest.TestCase):
 
     def test_schedule_run_timed_delayed(self):
         mh = em.MainHandler()
-        th = TestHandler()
-        th2 = TestHandler()
+        th = StubHandler()
+        th2 = StubHandler()
         mh.schedule(th, 0.01, 'test', 'hello')
         mh.schedule(th2, 0, 'test', 'hello2')
         time.sleep(0.01)

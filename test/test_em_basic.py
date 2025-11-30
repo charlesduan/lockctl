@@ -2,7 +2,7 @@ import unittest
 import em
 import time
 
-class TestHandlerBasics(em.Handler):
+class StubHandler(em.Handler):
     def __init__(self):
         self.var = None
 
@@ -17,13 +17,13 @@ class TestEMBasic(unittest.TestCase):
 
     def test_send(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.send(th, 'test', 'hello')
         self.assertEqual(len(mh.queue), 1)
 
     def test_run(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.send(th, 'test', 'hello')
         mh.run(catch_exceptions = False)
         self.assertEqual(th.var, 'hello')
@@ -35,7 +35,7 @@ class TestEMBasic(unittest.TestCase):
 
     def test_run_one(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.send(th, 'test', 'hello')
         mh.handle_run()
         self.assertEqual(len(mh.queue), 2)
@@ -48,7 +48,7 @@ class TestEMBasic(unittest.TestCase):
 
     def test_run_timeout(self):
         mh = em.MainHandler()
-        th = TestHandler()
+        th = StubHandler()
         mh.schedule(th, 0.01, 'test', 'hello')
         start = time.monotonic()
         mh.handle_run()

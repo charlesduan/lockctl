@@ -163,6 +163,15 @@ class MainHandler(Handler):
         self.timed_queue = {}
         self.fd_handlers = set()
 
+    def reset(self):
+        """
+        Resets the MainHandler to its original state. This probably should not
+        be used except for testing.
+        """
+        try: self.selector.close()
+        except AttributeError: pass
+
+        self.__init__()
 
     def handle_run(self, payload = None):
         """
@@ -337,4 +346,7 @@ schedule = main_handler.schedule
 deschedule = main_handler.deschedule
 run = main_handler.run
 register_reader = main_handler.register_reader
+
 logger = Logger()
+def log(message):
+    send(logger, 'log', message)

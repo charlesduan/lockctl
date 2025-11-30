@@ -15,6 +15,14 @@ with open('config.yaml', 'r') as io:
     config = yaml.safe_load(io)
 
 
+class UnlockHandler(gpio_handlers.OutputHandler):
+    """
+    Handles the GPIO switch indicating lock state.
+    """
+    def handle_pulse(self, duration = None):
+        if duration is None: duration = 10
+        em.log(f"Authorized door unlocking for {duration} seconds")
+        super().handle_pulse(duration)
 
 class LockSwitchHandler(gpio_handlers.InputHandler):
     """
