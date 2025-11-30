@@ -2,7 +2,7 @@ import unittest
 import em
 import time
 
-class TestHandler(em.Handler):
+class TestHandlerBasics(em.Handler):
     def __init__(self):
         self.var = None
 
