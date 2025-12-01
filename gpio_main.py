@@ -1,6 +1,8 @@
 import gpiod
 from gpiod.line import Direction, Value
 from gpio_handlers import InputHandler, OutputHandler
+import em
+import datetime
 
 class GPIOHandler(em.FDHandler):
     """
@@ -71,6 +73,7 @@ class GPIOHandler(em.FDHandler):
         self.request = self.chip.request_lines(
                 settings, consumer = self.consumer
                 )
+        em.log(f"Requesting lines: {settings}")
         super().__init__(self.request.fd)
         em.register_reader(self)
 

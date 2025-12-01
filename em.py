@@ -266,6 +266,7 @@ class MainHandler(Handler):
         if handler.timeout is not None:
             self.schedule(handler, handler.timeout, "timeout")
         self.selector.register(handler.fileobj, selectors.EVENT_READ, handler)
+        log(f"Registering {type(handler)}")
 
     def unregister(self, handler: FDHandler):
         """
@@ -279,6 +280,7 @@ class MainHandler(Handler):
         self.deschedule(handler)
         self.selector.unregister(handler.fileobj)
         self.fd_handlers.remove(handler)
+        log(f"Unregistering {type(handler)}")
 
 
     def schedule(self, obj, delay, message, payload = None):

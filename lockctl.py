@@ -7,6 +7,7 @@ import yaml
 import em
 import socket
 import gpio_handlers
+from gpio_main import GPIOHandler
 from collections import namedtuple
 
 from gpiod.line import Value
@@ -76,9 +77,9 @@ class SocketUnlockReader(em.LineReader):
         self.fileobj.shutdown(socket.SHUT_RDWR)
         super().terminate()
 
-gpio_handler = gpio_handlers.GPIOHandler(config['chip'], config['consumer'])
+gpio_handler = GPIOHandler(config['chip'], config['consumer'])
 
-unlocker = gpio_handlers.OutputHandler(gpio_handler, config['out_line'])
+unlocker = UnlockHandler(gpio_handler, config['out_line'])
 beeper = gpio_handlers.OutputHandler(gpio_handler, config['piezo_line'])
 lock_tester = LockSwitchHandler(gpio_handler, config['in_line'])
 
