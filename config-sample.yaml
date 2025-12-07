@@ -18,3 +18,6 @@ port: 12345
 
 # Password to be sent to unlock the door.
 password: "abcdefg12345"
+
+# Beep times when the door is unlocked.
+unlock_beep_times: [ 0, 0.5, 1, 10, 10.5, 11, 20, 20.5, 21, 30, 30.5, 31 ]

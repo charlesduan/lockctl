@@ -30,7 +30,8 @@ class LockSwitchHandler(gpio_handlers.InputHandler):
     Handles the GPIO switch indicating lock state.
     """
     def __init__(self, gpio_handler, line):
-        self.beep_delays = [ 0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60 ]
+        global config
+        self.beep_delays = config['unlock_beep_times']
         super().__init__(gpio_handler, line)
 
     def handle_rise(self, payload):

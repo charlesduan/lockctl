@@ -1,0 +1,16 @@
+[Unit]
+Description=Door Lock Controller
+After=network.target
+
+[Service]
+Type=exec
+ExecStart=/path/to/lockctl.py
+WorkingDirectory=/path/to/lockctl
+User=user
+Restart=always
+StandardOutput=append:/var/log/lockctl.log
+StandardError=inherit
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
