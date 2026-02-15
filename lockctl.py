@@ -28,8 +28,10 @@ class UnlockHandler(gpio_handlers.OutputHandler):
         In addition to unlocking the door for the given duration, logs the fact
         that the door was unlocked.
         """
+        global beeper
         if duration is None: duration = 10
         em.log(f"Authorized door unlocking for {duration} seconds")
+        em.send(beeper, 'pulse', 2)
         super().handle_pulse(duration)
 
 class LockSwitchHandler(gpio_handlers.InputHandler):
@@ -93,14 +95,14 @@ class SocketUnlockReader(em.LineReader):
 
         match words.pop(0).lower():
             case "unlock":
-                handle_unlock(words)
+                self.handle_unlock(words)
             case "status":
-                handle_status(words)
+                self.handle_status(words)
             case _:
                 self.fileobj.send(b"Unknown command\n")
 
 
-    def handle_unlock(args):
+    def handle_unlock(self, args):
         if args and args[0] == self.password:
             em.send(em.logger, 'log',
                     f"Access granted to {self.fileobj.getpeername()}")
@@ -110,7 +112,7 @@ class SocketUnlockReader(em.LineReader):
             self.fileobj.send(b"Access denied\n")
 
 
-    def handle_status(args):
+    def handle_status(self, args):
         global lock_tester
         if lock_tester.unlocked:
             self.fileobj.send(b"Unlocked\n")
@@ -119,7 +121,8 @@ class SocketUnlockReader(em.LineReader):
 
 
     def terminate(self):
-        self.fileobj.shutdown(socket.SHUT_RDWR)
+        try:    self.fileobj.shutdown(socket.SHUT_RDWR)
+        except: pass
         super().terminate()
 
 gpio_handler = GPIOHandler(config['chip'], config['consumer'])

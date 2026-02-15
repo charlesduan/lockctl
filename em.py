@@ -105,12 +105,14 @@ class LineReader(FDHandler):
 
         self.buffer += buf
         while (idx := self.buffer.find(self.delimiter)) >= 0:
-            self.handle_line(self.buffer[0:idx].decode(self.encoding))
-            del self.buffer[0:(idx + len(self.delimiter))]
+            try:     self.handle_line(self.buffer[0:idx].decode(self.encoding))
+            finally: del self.buffer[0:(idx + len(self.delimiter))]
 
 
     def terminate(self):
-        if self.buffer: self.handle_line(self.buffer.decode(self.encoding))
+        if self.buffer:
+            try:     self.handle_line(self.buffer.decode(self.encoding))
+            finally: del self.buffer
         super().terminate()
 
 
