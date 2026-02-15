@@ -138,7 +138,7 @@ gpio_handler.add(lock_tester)
 gpio_handler.make_request()
 
 socket_listener = em.SocketListener(
-        'localhost', config['port'], lambda c: SocketUnlockReader(c)
+        '', config['port'], lambda c: SocketUnlockReader(c)
         )
 
 em.register_reader(socket_listener)
