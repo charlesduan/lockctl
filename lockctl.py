@@ -18,20 +18,29 @@ with open('config.yaml', 'r') as io:
 
 class UnlockHandler(gpio_handlers.OutputHandler):
     """
-    Handles the GPIO switch indicating lock state.
+    Handles the GPIO output switch that unlocks the door. Typically this event
+    handler should be given a "pulse" message to cause the door to be unlocked
+    for a brief period of time.
     """
+
     def handle_pulse(self, duration = None):
+        """
+        In addition to unlocking the door for the given duration, logs the fact
+        that the door was unlocked.
+        """
         if duration is None: duration = 10
         em.log(f"Authorized door unlocking for {duration} seconds")
         super().handle_pulse(duration)
 
 class LockSwitchHandler(gpio_handlers.InputHandler):
     """
-    Handles the GPIO switch indicating lock state.
+    Handles the GPIO input switch indicating whether the door is locked or
+    unlocked.
     """
     def __init__(self, gpio_handler, line):
         global config
         self.beep_delays = config['unlock_beep_times']
+        self.unlocked = False
         super().__init__(gpio_handler, line)
 
     def handle_rise(self, payload):
@@ -40,6 +49,7 @@ class LockSwitchHandler(gpio_handlers.InputHandler):
         unlocked.
         """
         global unlocker
+        self.unlocked = True
         em.send(unlocker, "on")
         em.send(em.logger, 'log', "Door manually unlocked")
         self.beep_index = 0
@@ -56,23 +66,57 @@ class LockSwitchHandler(gpio_handlers.InputHandler):
 
     def handle_fall(self, payload):
         global unlocker
+        self.unlocked = False
         em.send(unlocker, "off")
         em.send(em.logger, 'log', "Door manually locked")
         em.deschedule(self)
 
 
 class SocketUnlockReader(em.LineReader):
-    def __init__(self, fileobj, password, unlock_time):
-        self.password = password
-        self.unlock_time = unlock_time
+    def __init__(self, fileobj):
+        global config
+
+        if "password" not in config:
+            raise RuntimeError("No unlock password given")
+        self.password = config["password"]
+        self.unlock_time = config.get("unlock_time", 10)
+
         em.send(em.logger, 'log', f"Connection from {fileobj.getpeername()}")
-        super().__init__(fileobj, timeout = 10)
+
+        # The 60 below is the timeout for network reads.
+        super().__init__(fileobj, timeout = 60)
+
 
     def handle_line(self, line):
-        if self.password in line:
+        words = line.split()
+        if not words: return
+
+        match words.pop(0).lower():
+            case "unlock":
+                handle_unlock(words)
+            case "status":
+                handle_status(words)
+            case _:
+                self.fileobj.send(b"Unknown command\n")
+
+
+    def handle_unlock(args):
+        if args and args[0] == self.password:
             em.send(em.logger, 'log',
                     f"Access granted to {self.fileobj.getpeername()}")
             em.send(unlocker, 'pulse', self.unlock_time)
+            self.fileobj.send(b"Access granted\n")
+        else:
+            self.fileobj.send(b"Access denied\n")
+
+
+    def handle_status(args):
+        global lock_tester
+        if lock_tester.unlocked:
+            self.fileobj.send(b"Unlocked\n")
+        else:
+            self.fileobj.send(b"Locked\n")
+
 
     def terminate(self):
         self.fileobj.shutdown(socket.SHUT_RDWR)
@@ -91,8 +135,7 @@ gpio_handler.add(lock_tester)
 gpio_handler.make_request()
 
 socket_listener = em.SocketListener(
-        'localhost', config['port'],
-        lambda c: SocketUnlockReader(c, config['password'], 10)
+        'localhost', config['port'], lambda c: SocketUnlockReader(c)
         )
 
 em.register_reader(socket_listener)
