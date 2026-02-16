@@ -29,10 +29,16 @@ class Logger(Handler):
     An event handler that logs messages. A singleton instance of this class is
     stored in the module's em.logger variable.
     """
+
+    def __init__(self):
+        self.buffer = collections.deque(20)
+
     def handle_log(self, payload):
         cont = None
         if "\n" in payload: payload, cont = payload.split("\n", 1)
-        print(f"{time.asctime()}: {payload}")
+        message = f"{time.asctime()}: {payload}"
+        self.buffer.appendleft(message)
+        print(message)
 
         if cont is None: return
         print("-----")

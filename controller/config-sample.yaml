@@ -1,0 +1,15 @@
+# The port number for running the controller.
+port: 12345
+
+# A list of doors managed by this controller.
+doors:
+
+  # For each door, provide a text name, a hostname or IP address, and a port.
+  - name: "Door A"
+    host: door-a.local
+    port: 12345
+
+  - name: "Door B"
+    host: door-b.local
+    port: 12345
+
