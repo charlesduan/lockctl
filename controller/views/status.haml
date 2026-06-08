@@ -1,0 +1,14 @@
+!!!
+%html
+  %head
+    %title Door Lock Status
+  %body
+    %h1 Door Lock Status
+    %ul
+      - res.each do |name, status|
+        %li
+          & #{name}:
+          %b&= status
+    %p
+      %i
+        %a{ href: '/' } Back to home
